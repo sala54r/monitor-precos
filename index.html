@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monitor de preços</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#fafafa;--fg:#1a1a1a;--card:#fff;--mut:#6b6b6b;--bd:#e3e3e3;--grid:#ececec}
+@media(prefers-color-scheme:dark){:root{--bg:#16161a;--fg:#ececec;--card:#202026;--mut:#9a9aa3;--bd:#33333b;--grid:#2d2d35}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:880px;margin:0 auto;padding:20px}
+h1{font-size:22px;margin-bottom:2px}.sub{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px 20px;margin:16px 0}
+.card h2{margin:0 0 4px;font-size:17px}.preco{font-size:30px;font-weight:600}
+.stats{display:flex;gap:22px;flex-wrap:wrap;margin:8px 0}.stats div{font-size:13px;color:var(--mut)}
+.stats b{display:block;color:var(--fg);font-size:15px}
+.b{font-size:12px;font-weight:500;padding:2px 8px;border-radius:99px;vertical-align:middle;color:#fff}
+.hit{background:#16a34a}.low{background:#2563eb}
+.chart{position:relative;height:240px;margin-top:8px}
+ul{padding-left:18px;font-size:13px}a{color:inherit}
+</style></head><body>
+<h1>Monitor de preços</h1><div class="sub" id="upd">Carregando…</div>
+<div id="app"></div>
+<script>
+const brl=v=>v==null?'—':v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fdt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cores=['#2563eb','#f59e0b','#10b981','#ef4444','#8b5cf6'];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function card(p,i){
+  const m=p.melhor, el=document.createElement('div'); el.className='card';
+  if(!m.length){el.innerHTML=`<h2>${esc(p.nome)}</h2><div class="sub">Ainda sem dados. ${esc(p.status)}</div>`;return el;}
+  const vals=m.map(x=>x[1]), atual=vals.at(-1), min=Math.min(...vals), max=Math.max(...vals);
+  const var_=vals.length>1?(atual-vals[0])/vals[0]*100:0;
+  let badge=''; if(p.alvo&&atual<=p.alvo)badge='<span class="b hit">abaixo do alvo</span>';
+  else if(vals.length>1&&atual<=min)badge='<span class="b low">menor já visto</span>';
+  const of=p.ofertas[0];
+  el.innerHTML=`<h2>${esc(p.nome)}</h2>
+  <div class="preco">${brl(atual)} ${badge}</div>
+  <div class="sub">${of?esc(of.loja)+' · ':''}coletado em ${fdt(p.ultima_coleta)}</div>
+  <div class="stats"><div>Mínimo<b>${brl(min)}</b></div><div>Máximo<b>${brl(max)}</b></div>
+  <div>Alvo<b>${brl(p.alvo)}</b></div><div>Desde o início<b>${var_>0?'+':''}${var_.toFixed(1)}%</b></div></div>
+  <div class="chart"><canvas id="c${i}"></canvas></div>
+  <ul>${p.ofertas.map(o=>`<li>${esc(o.loja)}: ${brl(o.preco)} — <a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.titulo.slice(0,80))}</a></li>`).join('')}</ul>
+  <div class="sub">${esc(p.status)}</div>`;
+  return el;
+}
+function chart(p,i){
+  if(!p.melhor.length)return;
+  const pt=a=>a.map(([t,v])=>({x:Date.parse(t),y:v}));
+  const ds=[{label:'Melhor preço',data:pt(p.melhor),borderColor:cores[0],backgroundColor:cores[0],borderWidth:3,tension:.2,pointRadius:3}];
+  const ls=Object.keys(p.lojas); if(ls.length>1) ls.forEach((l,k)=>ds.push({label:l,data:pt(p.lojas[l]),borderColor:cores[(k+1)%5],backgroundColor:cores[(k+1)%5],borderWidth:1.5,tension:.2,pointRadius:2}));
+  if(p.alvo){const xs=ds[0].data.map(d=>d.x);ds.push({label:'Alvo',data:[{x:Math.min(...xs),y:p.alvo},{x:Math.max(...xs),y:p.alvo}],borderColor:'#16a34a',borderDash:[6,4],borderWidth:1.5,pointRadius:0});}
+  new Chart(document.getElementById('c'+i),{type:'line',data:{datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},
+    scales:{x:{type:'linear',ticks:{color:css('--mut'),maxTicksLimit:6,callback:v=>fdt(v)},grid:{color:css('--grid')}},
+            y:{ticks:{color:css('--mut'),callback:v=>brl(v)},grid:{color:css('--grid')}}},
+    plugins:{legend:{labels:{color:css('--mut'),boxWidth:12}},
+             tooltip:{callbacks:{title:c=>fdt(c[0].parsed.x),label:c=>`${c.dataset.label}: ${brl(c.parsed.y)}`}}}}});
+}
+fetch('dados.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+  document.getElementById('upd').textContent='Atualizado em '+fdt(d.atualizado);
+  const app=document.getElementById('app');
+  d.produtos.forEach((p,i)=>app.appendChild(card(p,i)));
+  d.produtos.forEach(chart);
+}).catch(()=>document.getElementById('upd').textContent='Sem dados ainda. Rode o monitor.py e recarregue.');
+setTimeout(()=>location.reload(),5*60*1000);
+</script></body></html>

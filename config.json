@@ -1,0 +1,37 @@
+{
+  "intervalo_minutos": 180,
+  "porta": 8000,
+  "telegram": { "token": "", "chat_id": "" },
+  "produtos": [
+    {
+      "nome": "Pneu 175/75 R13",
+      "busca": "pneu 175/75r13",
+      "deve_conter": ["175/75r13"],
+      "nao_conter": ["kit", "jogo", "usado", "remold", "recapado", "carga", "moto"],
+      "preco_min": 150,
+      "preco_max": 1500,
+      "preco_alvo": null,
+      "urls_extras": []
+    },
+    {
+      "nome": "Mac mini M4",
+      "busca": "mac mini m4",
+      "deve_conter": ["macmini", "m4"],
+      "nao_conter": ["pro", "usado", "seminovo", "capa", "suporte", "hub", "dock", "case", "m2", "m5", "m6"],
+      "preco_min": 3000,
+      "preco_max": 20000,
+      "preco_alvo": null,
+      "urls_extras": []
+    },
+    {
+      "nome": "Mac mini M6",
+      "busca": "mac mini m6",
+      "deve_conter": ["macmini", "m6"],
+      "nao_conter": ["usado", "seminovo", "capa", "suporte", "hub", "dock", "case", "m4", "m5"],
+      "preco_min": 3000,
+      "preco_max": 25000,
+      "preco_alvo": null,
+      "urls_extras": []
+    }
+  ]
+}
